@@ -8,7 +8,8 @@ use librespot::core::audio_key::AudioKey;
 use librespot::core::session::Session;
 use librespot::core::spotify_id::SpotifyId;
 use librespot::metadata::{Metadata, Track};
-use librespot::protocol::metadata::audio_file::Format as FileFormat;
+//use librespot::protocol::metadata::audio_file::Format as FileFormat;
+use librespot::metadata::audio::AudioFileFormat as FileFormat;
 use sanitize_filename::sanitize;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
@@ -542,6 +543,10 @@ impl DownloaderInternal {
 			}
 			warn!("{} Falling back to: {:?}", id.to_base62().unwrap(), quality);
 		}
+		
+		if file_id.is_none() {
+			warn!("Track {} has no available file in requested quality {:?}", id.to_base62().unwrap(), quality);
+		}
 
 		let file_id = file_id.ok_or(SpotifyError::Unavailable)?;
 		let file_format = file_format.unwrap();
@@ -731,8 +736,12 @@ impl From<FileFormat> for AudioFormat {
 			FileFormat::AAC_320 => Self::Aac,
 			FileFormat::FLAC_FLAC => Self::Flac,
 			FileFormat::MP4_128 => Self::Mp4,
+ 			FileFormat::XHE_AAC_24 => Self::Flac,
+			FileFormat::XHE_AAC_16 => Self::Flac,
+			FileFormat::XHE_AAC_12 => Self::Flac,
+			FileFormat::FLAC_FLAC_24BIT => Self::Flac,
 			FileFormat::OTHER5 => AudioFormat::Unknown,
-			FileFormat::UNKNOWN_FORMAT => AudioFormat::Unknown,
+//			FileFormat::UNKNOWN_FORMAT => AudioFormat::Unknown,
 		}
 	}
 }
