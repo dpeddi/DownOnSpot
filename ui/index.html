@@ -265,6 +265,8 @@
       const container = document.getElementById("status");
       container.innerHTML = "";
 
+      let foundDone = false;
+
       downloads.forEach(dl => {
         const item = document.createElement("div");
         item.className = "download-item";
@@ -290,6 +292,7 @@
           item.appendChild(state);
           item.appendChild(bar);
         } else if (dl.state === "Done") {
+          foundDone = true;               // ← rilevato completamento
           state.textContent = "✅ Completato";
           item.appendChild(title);
           item.appendChild(state);
@@ -305,6 +308,11 @@
 
         container.appendChild(item);
       });
+
+      // Se abbiamo trovato almeno un "Done", ricarica subito la lista file
+      if (foundDone) {
+        await loadDownloadedFiles();
+      }
     }
 
     async function loadDownloadedFiles() {
@@ -314,6 +322,8 @@
       try {
         const res = await fetch("/api/downloads");
         const files = await res.json();
+        let files = await res.json();
+        files = files.filter(file => file.size > 0);
         list.innerHTML = "";
 
         if (files.length === 0) {
