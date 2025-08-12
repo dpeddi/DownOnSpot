@@ -167,6 +167,10 @@
   </style>
 </head>
 <body>
+  <div style="position: absolute; top: 20px; right: 20px;">
+    <button onclick="login()">🔐 Login</button>
+  </div>
+
   <h1>DownOnSpot Web</h1>
   <div class="grid-container">
     <div class="left-column">
@@ -212,6 +216,20 @@
       const m = Math.floor(sec / 60);
       const s = Math.floor(sec % 60).toString().padStart(2, "0");
       return `${m}:${s}`;
+    }
+
+    async function login() {
+        try {
+            const res = await fetch("/api/login", { method: "POST" });
+
+            if (!res.ok) throw new Error("Login fallito");
+
+            const data = await res.json();
+            alert(`✅ Login effettuato!`);
+        } catch (err) {
+            alert("❌ Errore durante il login");
+            console.error(err);
+        }
     }
 
     async function search() {

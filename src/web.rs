@@ -55,6 +55,20 @@ async fn api_download(payload: web::Json<DownloadRequest>, app_state: web::Data<
     }
 }
 
+#[post("/api/login")]
+async fn api_login() -> impl Responder {
+    use std::path::PathBuf;
+    use crate::spotify::run_spotify_login;
+
+    let path = PathBuf::from("credentials.json");
+    let force = true;
+
+    match run_spotify_login(path, force) {
+        Ok(_) => HttpResponse::Ok().json(serde_json::json!({ "status": "ok" })),
+        Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({ "error": e })),
+    }
+}
+
 #[get("/api/status")]
 async fn api_status(app_state: web::Data<AppState>) -> actix_web::HttpResponse {
     let downloads = app_state.downloader.lock().await.get_downloads().await;
@@ -164,6 +178,7 @@ pub async fn start_web_server(downloader: Downloader) -> std::io::Result<()> {
     println!("   GET    /api/status");
     println!("   GET    /api/downloads");
     println!("   DELETE /api/downloads?file=<nome>");
+    println!("   POST   /api/login");
 
     HttpServer::new(move || {
         App::new()
@@ -173,6 +188,7 @@ pub async fn start_web_server(downloader: Downloader) -> std::io::Result<()> {
             .service(api_status)
             .service(api_list_downloads)   // ← nuovo
             .service(api_delete_download)  // ← nuovo
+            .service(api_login) // ← aggiunto qui
             // Servi file statici UI
             .service(Files::new("/static", "./ui/static").show_files_listing())
             .service(Files::new("/ui", "./ui").index_file("index.html"))

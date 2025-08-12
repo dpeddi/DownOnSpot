@@ -12,6 +12,83 @@ use url::Url;
 
 use crate::error::SpotifyError;
 
+use std::path::PathBuf;
+
+use sha1::Sha1;
+use std::fs::File;
+use std::io::Write;
+use std::time::Duration;
+use log::{info};
+
+use mdns_sd::{ServiceDaemon, ServiceInfo};
+use std::thread;
+
+pub fn run_spotify_login(path: PathBuf, force: bool) -> Result<(), String> {
+    if path.exists() && !force {
+        return Err("File già esistente, usa --force per sovrascrivere".to_string());
+    }
+
+    let username = std::env::var("USER").unwrap_or("unknown".to_string());
+    let device_name = format!("spotify-quickauth-{}", username);
+
+    let mut hasher = Sha1::new();
+    hasher.update(device_name.as_bytes());
+    let hash = hasher.digest().bytes();
+    let device_id = hex::encode(hash);
+
+    // 🔧 Avvia il demone mDNS
+    let mdns = ServiceDaemon::new().map_err(|e| format!("Errore mDNS: {e}"))?;
+
+use std::collections::HashMap;
+
+let mut txt_props = HashMap::new();
+txt_props.insert("version".to_string(), "1.0".to_string());
+txt_props.insert("platform".to_string(), "windows".to_string());
+txt_props.insert("type".to_string(), "speaker".to_string());
+txt_props.insert("device".to_string(), device_name.clone());
+txt_props.insert("device_id".to_string(), device_id.clone());
+
+use std::net::Ipv4Addr;
+let ip = Ipv4Addr::new(192, 168, 179, 75); // Sostituisci con il tuo IP
+let service_info = ServiceInfo::new(
+    "_spotify-connect._tcp.local.",
+    &device_name,
+    "RustSpeaker.local.",
+//    (), // ✅ Nessun IP esplicito, gestito automaticamente
+  ip,
+    12345,
+    Some(txt_props), // ✅ ora è del tipo corretto
+).map_err(|e| format!("Errore creazione servizio: {e}"))?;
+
+    // 🔧 Registra il servizio
+    mdns.register(service_info).map_err(|e| format!("Errore registrazione mDNS: {e}"))?;
+
+    info!("Servizio mDNS registrato come: {}", device_name);
+    println!("Apri Spotify e seleziona il dispositivo: {}", device_name);
+
+    // 🔐 Simula ricezione credenziali
+    let fake_credentials = Credentials::with_password("user", "pass");
+
+    // 💾 Salva le credenziali
+    let result = File::create(&path).and_then(|mut file| {
+        let data = serde_json::to_string(&fake_credentials)?;
+        write!(file, "{data}")
+    });
+
+    match result {
+        Ok(_) => {
+            info!("Credenziali salvate: {}", path.display());
+            // Mantieni il servizio attivo
+            loop {
+                thread::sleep(Duration::from_secs(60));
+            }
+        }
+        Err(e) => Err(format!("Errore salvataggio credenziali: {e}")),
+    }
+}
+
+
+
 pub struct Spotify {
 	// librespotify sessopm
 	pub session: Session,
