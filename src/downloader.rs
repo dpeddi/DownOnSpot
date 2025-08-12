@@ -12,6 +12,7 @@ use librespot::metadata::{Metadata, Track};
 use librespot::metadata::audio::AudioFileFormat as FileFormat;
 use sanitize_filename::sanitize;
 use serde::{Deserialize, Serialize};
+use serde::ser::{Serializer, SerializeStruct, SerializeTupleVariant};
 use std::fmt::Display;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -883,7 +884,7 @@ pub enum Response {
 	Downloads(Vec<Download>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Download {
 	pub id: i64,
 	pub track_id: String,
@@ -947,6 +948,31 @@ pub enum DownloadState {
 	Post,
 	Done,
 	Error(SpotifyError),
+}
+impl Serialize for DownloadState {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            DownloadState::None => serializer.serialize_str("None"),
+            DownloadState::Lock => serializer.serialize_str("Lock"),
+            DownloadState::Post => serializer.serialize_str("Post"),
+            DownloadState::Done => serializer.serialize_str("Done"),
+            DownloadState::Downloading(current, total) => {
+                let mut sv = serializer.serialize_tuple_variant("DownloadState", 0, "Downloading", 2)?;
+                sv.serialize_field(current)?;
+                sv.serialize_field(total)?;
+                sv.end()
+            }
+            DownloadState::Error(err) => {
+                let mut ss = serializer.serialize_struct("DownloadState", 2)?;
+                ss.serialize_field("type", "Error")?;
+                ss.serialize_field("message", &err.to_string())?;
+                ss.end()
+            }
+        }
+    }
 }
 
 /// Bitrate of music

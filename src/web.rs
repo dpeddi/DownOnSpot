@@ -56,9 +56,9 @@ async fn api_download(payload: web::Json<DownloadRequest>, app_state: web::Data<
 
 
 #[get("/api/status")]
-async fn api_status(app_state: web::Data<AppState>) -> impl Responder {
-    let dl = app_state.downloader.lock().await;
-    HttpResponse::Ok().json(dl.get_status())
+async fn api_status(app_state: web::Data<AppState>) -> actix_web::HttpResponse {
+    let downloads = app_state.downloader.lock().await.get_downloads().await;
+    HttpResponse::Ok().json(downloads)
 }
 
 pub async fn start_web_server(downloader: Downloader) -> std::io::Result<()> {

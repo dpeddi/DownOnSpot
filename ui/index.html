@@ -28,15 +28,11 @@
             });
             alert("Download avviato!");
         }
-
-        async function status() {
-            const res = await fetch("/api/status");
-            const data = await res.json();
-            document.getElementById("status").innerText = data.join("\n");
-        }
-
-        setInterval(status, 5000);
     </script>
+	<script src="/static/script.js"></script>
+	<script>
+		setInterval(status, 3000); // usa la funzione avanzata
+	</script>
 </head>
 <body>
     <h1>DownOnSpot Web</h1>

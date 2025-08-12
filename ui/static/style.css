@@ -21,3 +21,15 @@ button {
 button:hover {
     background-color: #005fa3;
 }
+
+.download-item {
+    margin: 0.5rem 0;
+    padding: 0.5rem;
+    background: #fff;
+    border-left: 4px solid #007acc;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.download-item span {
+    display: inline-block;
+    margin-right: 1rem;
+}
