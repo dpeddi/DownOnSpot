@@ -44,8 +44,10 @@ async fn start() {
 	let args = Args::from_cli();
 
 	let settings = match Settings::load().await {
-		Ok(settings) => {
-			println!("{}.", "Settings successfully loaded.\nContinuing".green());
+		Ok((settings, path)) => {
+			println!("{} {} {}.", "Settings successfully loaded from: ".green(),
+			path.to_string_lossy(),
+			"\nContinuing");
 			settings
 		}
 		Err(e) => {
