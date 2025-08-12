@@ -33,3 +33,16 @@ button:hover {
     display: inline-block;
     margin-right: 1rem;
 }
+
+.progress-bar {
+  width: 100%;
+  background: #ddd;
+  border-radius: 4px;
+  height: 10px;
+}
+.progress-fill {
+  height: 10px;
+  background: #4caf50;
+  border-radius: 4px;
+}
+

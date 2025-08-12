@@ -1,45 +1,273 @@
 <!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
-    <title>DownOnSpot Web</title>
-    <script>
-        async function search() {
-            const q = document.getElementById("query").value;
-            const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-            const data = await res.json();
-            const list = document.getElementById("results");
-            list.innerHTML = "";
-            data.forEach(item => {
-                const li = document.createElement("li");
-                li.textContent = item.title;
-                const btn = document.createElement("button");
-                btn.textContent = "Scarica";
-                btn.onclick = () => download(item.url);
-                li.appendChild(btn);
-                list.appendChild(li);
-            });
+  <meta charset="UTF-8" />
+  <title>DownOnSpot Web</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f0f0f4;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1, h2 {
+      margin-top: 0;
+    }
+
+    .grid-container {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .left-column, .right-column {
+      flex: 1;
+      padding: 15px;
+      background-color: #fff;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    ul li {
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 5px;
+    }
+
+    button {
+      margin-left: 10px;
+      padding: 5px 10px;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    input#query {
+      width: calc(100% - 100px);
+      padding: 8px;
+      font-size: 16px;
+    }
+
+    .download-item {
+      margin-bottom: 12px;
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .progress-bar {
+      width: 100%;
+      background: #ddd;
+      border-radius: 4px;
+      height: 8px;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #4caf50;
+      transition: width 0.3s ease;
+    }
+
+    .download-title {
+      font-weight: bold;
+    }
+
+    .download-state {
+      font-size: 0.9em;
+      color: #555;
+    }
+  </style>
+
+  <script>
+    window.onload = function() {
+    const input = document.getElementById("query");
+
+    input.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+        search();
+        }
+    });
+    };
+
+    async function search() {
+        const q = document.getElementById("query").value;
+        const list = document.getElementById("results");
+
+        // ✅ Mostra messaggio di attesa
+        list.innerHTML = "<li><em>⏳ Ricerca in corso...</em></li>";
+
+        try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        list.innerHTML = "";
+
+        if (data.length === 0) {
+            list.innerHTML = "<li><em>Nessun risultato trovato.</em></li>";
+            return;
         }
 
-        async function download(url) {
-            await fetch("/api/download", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ url })
-            });
-            alert("Download avviato!");
+        data.forEach(item => {
+            const li = document.createElement("li");
+            li.textContent = item.title;
+            const btn = document.createElement("button");
+            btn.textContent = "Scarica";
+            btn.onclick = () => download(item.url);
+            li.appendChild(btn);
+            list.appendChild(li);
+        });
+        } catch (error) {
+        list.innerHTML = "<li><em>❌ Errore durante la ricerca.</em></li>";
         }
-    </script>
-	<script src="/static/script.js"></script>
-	<script>
-		setInterval(status, 3000); // usa la funzione avanzata
-	</script>
+    }
+
+    async function download(url) {
+        // Mostra subito un placeholder visivo
+        const container = document.getElementById("status");
+        const placeholder = document.createElement("div");
+        placeholder.className = "download-item";
+        placeholder.innerHTML = `<span>⏳ Download in attesa...</span>`;
+        container.insertBefore(placeholder, container.firstChild);
+
+        // Chiamata al backend
+        await fetch("/api/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url })
+        });
+    }
+
+    async function status() {
+      const res = await fetch("/api/status");
+      const downloads = await res.json();
+      const container = document.getElementById("status");
+      container.innerHTML = "";
+
+      downloads.forEach(dl => {
+        const item = document.createElement("div");
+        item.className = "download-item";
+
+        const title = document.createElement("div");
+        title.className = "download-title";
+        title.textContent = `🎵 ${dl.title}`;
+
+        const state = document.createElement("div");
+        state.className = "download-state";
+
+        if (dl.state?.Downloading) {
+          const [current, total] = dl.state.Downloading;
+          const percent = ((current / total) * 100).toFixed(1);
+          state.textContent = `⏬ ${percent}%`;
+          const bar = document.createElement("div");
+          bar.className = "progress-bar";
+          const fill = document.createElement("div");
+          fill.className = "progress-fill";
+          fill.style.width = `${percent}%`;
+          bar.appendChild(fill);
+          item.appendChild(title);
+          item.appendChild(state);
+          item.appendChild(bar);
+        } else if (dl.state === "Done") {
+          state.textContent = "✅ Completato";
+          item.appendChild(title);
+          item.appendChild(state);
+        } else if (dl.state?.Error) {
+          state.textContent = `❌ Errore: ${dl.state.Error}`;
+          item.appendChild(title);
+          item.appendChild(state);
+        } else {
+          state.textContent = `⏳ ${dl.state}`;
+          item.appendChild(title);
+          item.appendChild(state);
+        }
+
+        container.appendChild(item);
+      });
+    }
+
+    setInterval(status, 3000);
+
+  async function loadDownloadedFiles() {
+    const list = document.getElementById("downloaded");
+    list.innerHTML = "<li><em>⏳ Caricamento...</em></li>";
+
+    try {
+      const res = await fetch("/api/downloads");
+      const files = await res.json();
+      list.innerHTML = "";
+
+      if (files.length === 0) {
+        list.innerHTML = "<li><em>Nessun file scaricato.</em></li>";
+        return;
+      }
+
+      files.forEach(file => {
+        const li = document.createElement("li");
+        li.textContent = file;
+
+        const delBtn = document.createElement("button");
+        delBtn.textContent = "🗑️ Elimina";
+        delBtn.onclick = async () => {
+          await deleteFile(file);
+          await loadDownloadedFiles(); // aggiorna lista
+        };
+
+        li.appendChild(delBtn);
+        list.appendChild(li);
+      });
+    } catch (err) {
+      list.innerHTML = "<li><em>❌ Errore nel caricamento.</em></li>";
+    }
+  }
+
+  async function deleteFile(fileName) {
+    await fetch(`/api/downloads?file=${encodeURIComponent(fileName)}`, {
+      method: "DELETE"
+    });
+  }
+
+  // ✅ Avvia la visualizzazione all'avvio
+  window.onload = function() {
+    loadDownloadedFiles();
+
+    const input = document.getElementById("query");
+    input.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") {
+        search();
+      }
+    });
+  };    
+  </script>
 </head>
 <body>
-    <h1>DownOnSpot Web</h1>
-    <input id="query" placeholder="Cerca brano, artista, playlist..." />
-    <button onclick="search()">Cerca</button>
-    <ul id="results"></ul>
-    <h2>Stato download</h2>
-    <pre id="status"></pre>
+  <h1>DownOnSpot Web</h1>
+  <div class="grid-container">
+    <div class="left-column">
+      <h2>🎶 Risultati</h2>
+      <input id="query" placeholder="Cerca brano, artista, playlist..." />
+      <button onclick="search()">Cerca</button>
+      <ul id="results"></ul>
+    </div>
+    <div class="right-column">
+      <h2>📥 Stato download</h2>
+      <div id="status"></div>
+    </div>
+  </div>
 </body>
 </html>
