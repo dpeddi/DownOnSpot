@@ -37,8 +37,10 @@ async-stream = "0"
 oggvorbismeta = "0"
 sanitize-filename = "0"
 serde = { version = "1", features = ["derive"] }
-tokio = { version = "1", features = ["fs"] }
+tokio = { version = "1", features = ["fs", "rt-multi-thread", "macros"] }
 env_logger = "0"
+actix-web = "4"
+actix-files = "0.6"
 
 [package.metadata.winres]
 OriginalFilename = "DownOnSpot.exe"

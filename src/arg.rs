@@ -6,7 +6,11 @@ pub struct Args {
 	#[arg(
 		long_help = "Track / Album / Playlist / Artist / Podcast / Episode / Show / User URL, ID or search term\nFor example, \'Ariana Grande\', \'spotify:track:0KjAxsrYSvN0xGuh3cKPxD\', or \'https://open.spotify.com/playlist/37i9dQZF1DXcxvFzl58uP7\'"
 	)]
-	pub input: String,
+    pub input: Option<String>,  // 🔧 Ora è opzionale
+
+    /// Avvia in modalità web server
+    #[arg(short = 'w', long = "web")]
+    pub web: bool,
 }
 
 impl Args {

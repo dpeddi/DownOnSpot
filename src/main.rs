@@ -8,6 +8,7 @@ mod error;
 mod settings;
 mod spotify;
 mod tag;
+mod web;
 
 use arg::Args;
 use async_std::task;
@@ -17,6 +18,7 @@ use error::SpotifyError;
 use settings::Settings;
 use spotify::Spotify;
 use std::time::{Duration, Instant};
+use crate::web::start_web_server;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -97,11 +99,18 @@ async fn start() {
 
 	let downloader = Downloader::new(settings.downloader, spotify);
 
+    if args.web {
+        let _ = start_web_server(downloader).await;
+
+        return;
+    }
+
 	let bold = "\x1b[1m";
 	let bold_off = "\x1b[0m";
 
-	match downloader.handle_input(&args.input).await {
-		Ok(search_results) => {
+    match args.input {
+        Some(ref input) => match downloader.handle_input(input).await {
+            Ok(search_results) => {
 			if let Some(search_results) = search_results {
 				print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
 
@@ -324,6 +333,14 @@ async fn start() {
 		Err(e) => {
 			error!("{} {}", "Handling input failed:".red(), e)
 		}
+	},
+        None => {
+            eprintln!(
+                "{}",
+                "❌ Nessun input fornito. Usa --web oppure specifica un URL o termine di ricerca."
+                    .red()
+            );
+        }	
 	}
 }
 

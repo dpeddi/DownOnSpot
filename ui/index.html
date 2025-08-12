@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DownOnSpot Web</title>
+    <script>
+        async function search() {
+            const q = document.getElementById("query").value;
+            const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+            const data = await res.json();
+            const list = document.getElementById("results");
+            list.innerHTML = "";
+            data.forEach(item => {
+                const li = document.createElement("li");
+                li.textContent = item.title;
+                const btn = document.createElement("button");
+                btn.textContent = "Scarica";
+                btn.onclick = () => download(item.url);
+                li.appendChild(btn);
+                list.appendChild(li);
+            });
+        }
+
+        async function download(url) {
+            await fetch("/api/download", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url })
+            });
+            alert("Download avviato!");
+        }
+
+        async function status() {
+            const res = await fetch("/api/status");
+            const data = await res.json();
+            document.getElementById("status").innerText = data.join("\n");
+        }
+
+        setInterval(status, 5000);
+    </script>
+</head>
+<body>
+    <h1>DownOnSpot Web</h1>
+    <input id="query" placeholder="Cerca brano, artista, playlist..." />
+    <button onclick="search()">Cerca</button>
+    <ul id="results"></ul>
+    <h2>Stato download</h2>
+    <pre id="status"></pre>
+</body>
+</html>

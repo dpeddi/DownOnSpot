@@ -23,6 +23,15 @@ use crate::error::SpotifyError;
 use crate::spotify::{Spotify, SpotifyItem};
 use crate::tag::{Field, TagWrap};
 
+use std::sync::Arc;
+use std::sync::Mutex;
+
+#[derive(Debug, Clone)]
+pub struct Item {
+    pub title: String,
+    pub selected: bool,
+}
+
 /// Wrapper for use with UI
 #[derive(Debug, Clone)]
 pub struct Downloader {
@@ -30,6 +39,8 @@ pub struct Downloader {
 	tx: Sender<Message>,
 
 	spotify: Spotify,
+
+    status_log: Arc<Mutex<Vec<String>>>,
 }
 impl Downloader {
 	/// Create new instance
@@ -46,6 +57,8 @@ impl Downloader {
 			rx: rx_0,
 			tx: tx_1,
 			spotify,
+
+			status_log: Arc::new(Mutex::new(Vec::new())),
 		}
 	}
 	/// Add item to download queue
@@ -127,6 +140,77 @@ impl Downloader {
 		let Response::Downloads(d) = self.rx.recv().await.unwrap();
 		d
 	}
+
+	pub fn get_status(&self) -> Vec<String> {
+        self.status_log.lock().unwrap().clone()
+    }
+
+	pub async fn select_items(&mut self, items: Vec<Item>) -> Vec<Item> {
+        items.into_iter()
+            .filter(|item| item.selected)
+            .collect()
+    }
+
+	pub async fn download_items(&mut self, items: Vec<Item>) -> Result<(), SpotifyError> {
+		for item in items {
+			{
+				//let mut log = self.status_log.lock().unwrap();
+				//log.push(format!("▶️ Inizio download: {}", item.title));
+
+				//let len = log.len(); // chiudi il borrow immutabile
+//				if len > 100 {
+//					log.drain(0..len - 100); // ora puoi usare il borrow mutabile
+//				}
+
+			}
+
+			// Costruzione di un Download fittizio (track_id manuale)
+			let download = Download {
+				id: 0,
+				track_id: "manual".to_string(), // Puoi sostituirlo con un vero ID se disponibile
+				title: item.title.clone(),
+				state: DownloadState::None,
+			};
+
+			// Aggiunta alla coda
+			self.add_to_queue(download).await;
+
+			{
+				let mut log = self.status_log.lock().unwrap();
+				log.push(format!("✅ Aggiunto alla coda: {}", item.title));
+
+				let len = log.len();
+				if len > 100 {
+					log.drain(0..len - 100);
+				}
+
+
+			}
+		}
+
+		Ok(())
+	}
+
+	    pub async fn search_and_download(&mut self, input: &str) -> Result<(), String> {
+        let hits = self.handle_input(input)
+            .await
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "Nessun risultato".to_string())?;
+
+        let items: Vec<Item> = hits.into_iter()
+            .map(|r| Item { title: r.title, selected: true })
+            .collect();
+
+        let selected = self.select_items(items).await;
+        if selected.is_empty() {
+            return Err("Nessun elemento selezionato".to_string());
+        }
+
+        self.download_items(selected)
+            .await
+            .map_err(|e| e.to_string())
+    }
+
 }
 
 async fn communication_thread(
@@ -916,3 +1000,4 @@ impl DownloaderConfig {
 		}
 	}
 }
+
