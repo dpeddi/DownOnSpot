@@ -38,6 +38,7 @@
     ul li {
       margin-bottom: 10px;
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid #eee;
@@ -93,64 +94,169 @@
       font-size: 0.9em;
       color: #555;
     }
+
+    /* --- File scaricati: layout nome + pulsanti --- */
+    .file-name {
+      flex: 1;
+      min-width: 180px;
+      margin-right: 10px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    /* --- Lettore audio globale --- */
+    .player {
+      margin-top: 16px;
+      padding: 12px;
+      background: #fafafa;
+      border: 1px solid #eee;
+      border-radius: 8px;
+    }
+
+    .player-title {
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .player-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .player-time {
+      font-size: 0.9em;
+      color: #555;
+      min-width: 120px;
+    }
+
+    .seek {
+      width: 100%;
+      appearance: none;
+      height: 6px;
+      border-radius: 4px;
+      background: #ddd;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .seek::-webkit-slider-thumb {
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #4caf50;
+      border: none;
+      box-shadow: 0 0 0 2px rgba(76,175,80,0.25);
+    }
+
+    .seek::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #4caf50;
+      border: none;
+    }
   </style>
+</head>
+<body>
+  <h1>DownOnSpot Web</h1>
+  <div class="grid-container">
+    <div class="left-column">
+      <h2>🎶 Risultati</h2>
+      <input id="query" placeholder="Cerca brano, artista, playlist..." />
+      <button onclick="search()">Cerca</button>
+      <ul id="results"></ul>
+    </div>
+
+    
+    <div class="right-column">
+      <h2>📥 Stato download</h2>
+      <div id="status"></div>
+
+      <!-- Lettore audio globale -->
+      <div class="player" id="player">
+        <div class="player-title" id="player-title">Nessun brano in riproduzione</div>
+        <div class="player-controls">
+          <button id="player-toggle">▶️ Play</button>
+          <div class="player-time">
+            <span id="current-time">0:00</span> / <span id="duration">0:00</span>
+          </div>
+        </div>
+        <input type="range" id="seek" class="seek" min="0" max="100" step="0.1" value="0" />
+      </div>
+
+      <div class="file-section">
+        <h2>📂 File scaricati</h2>
+        <ul id="downloaded"></ul>
+      </div>
+
+    </div>
+  </div>
 
   <script>
-    window.onload = function() {
-    const input = document.getElementById("query");
+    const audio = new Audio(); // 🎧 Lettore globale
+    let currentTrackUrl = null;
+    let currentTrackName = null;
 
-    input.addEventListener("keydown", function(e) {
-        if (e.key === "Enter") {
-        search();
-        }
-    });
-    };
+    // --- Utilità tempo mm:ss ---
+    function formatTime(sec) {
+      if (!isFinite(sec)) return "0:00";
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60).toString().padStart(2, "0");
+      return `${m}:${s}`;
+    }
 
     async function search() {
-        const q = document.getElementById("query").value;
-        const list = document.getElementById("results");
+      const q = document.getElementById("query").value;
+      const list = document.getElementById("results");
+      list.innerHTML = "<li><em>⏳ Ricerca in corso...</em></li>";
 
-        // ✅ Mostra messaggio di attesa
-        list.innerHTML = "<li><em>⏳ Ricerca in corso...</em></li>";
-
-        try {
+      try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
         const data = await res.json();
         list.innerHTML = "";
 
         if (data.length === 0) {
-            list.innerHTML = "<li><em>Nessun risultato trovato.</em></li>";
-            return;
+          list.innerHTML = "<li><em>Nessun risultato trovato.</em></li>";
+          return;
         }
 
         data.forEach(item => {
-            const li = document.createElement("li");
-            li.textContent = item.title;
-            const btn = document.createElement("button");
-            btn.textContent = "Scarica";
-            btn.onclick = () => download(item.url);
-            li.appendChild(btn);
-            list.appendChild(li);
+          const li = document.createElement("li");
+          li.textContent = item.title;
+          const btn = document.createElement("button");
+          btn.textContent = "Scarica";
+          btn.onclick = () => download(item.url);
+          li.appendChild(btn);
+          list.appendChild(li);
         });
-        } catch (error) {
+      } catch (error) {
         list.innerHTML = "<li><em>❌ Errore durante la ricerca.</em></li>";
-        }
+      }
     }
 
     async function download(url) {
-        // Mostra subito un placeholder visivo
-        const container = document.getElementById("status");
-        const placeholder = document.createElement("div");
-        placeholder.className = "download-item";
-        placeholder.innerHTML = `<span>⏳ Download in attesa...</span>`;
-        container.insertBefore(placeholder, container.firstChild);
+      const container = document.getElementById("status");
+      const placeholder = document.createElement("div");
+      placeholder.className = "download-item";
+      placeholder.innerHTML = `<span>⏳ Download in attesa...</span>`;
+      container.insertBefore(placeholder, container.firstChild);
 
-        // Chiamata al backend
-        await fetch("/api/download", {
+      await fetch("/api/download", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url })
-        });
+      });
+
+      setTimeout(loadDownloadedFiles, 2000);
     }
 
     async function status() {
@@ -201,73 +307,172 @@
       });
     }
 
-    setInterval(status, 3000);
+    async function loadDownloadedFiles() {
+      const list = document.getElementById("downloaded");
+      list.innerHTML = "<li><em>⏳ Caricamento...</em></li>";
 
-  async function loadDownloadedFiles() {
-    const list = document.getElementById("downloaded");
-    list.innerHTML = "<li><em>⏳ Caricamento...</em></li>";
+      try {
+        const res = await fetch("/api/downloads");
+        const files = await res.json();
+        list.innerHTML = "";
 
-    try {
-      const res = await fetch("/api/downloads");
-      const files = await res.json();
-      list.innerHTML = "";
+        if (files.length === 0) {
+          list.innerHTML = "<li><em>Nessun file scaricato.</em></li>";
+          return;
+        }
 
-      if (files.length === 0) {
-        list.innerHTML = "<li><em>Nessun file scaricato.</em></li>";
-        return;
+        files.forEach(file => {
+          const li = document.createElement("li");
+
+          const nameWrap = document.createElement("div");
+          nameWrap.className = "file-name";
+          const link = document.createElement("a");
+          link.href = file.url;
+          link.textContent = file.name;
+          link.download = file.name;
+          nameWrap.appendChild(link);
+
+          const btnGroup = document.createElement("div");
+          btnGroup.className = "button-group";
+
+          const playBtn = document.createElement("button");
+          playBtn.textContent = "▶️ Play";
+          playBtn.onclick = () => {
+            if (currentTrackUrl !== file.url) {
+              currentTrackUrl = file.url;
+              currentTrackName = file.name;
+              audio.src = file.url;
+            }
+            audio.play();
+          };
+
+          const stopBtn = document.createElement("button");
+          stopBtn.textContent = "⏹️ Stop";
+          stopBtn.onclick = () => {
+            audio.pause();
+            audio.currentTime = 0;
+            updatePlayerUI();
+          };
+
+          const delBtn = document.createElement("button");
+          delBtn.textContent = "🗑️ Elimina";
+          delBtn.onclick = async () => {
+            await fetch(`/api/downloads?file=${encodeURIComponent(file.name)}`, { method: "DELETE" });
+            await loadDownloadedFiles();
+            // Se stavamo riproducendo questo file, fermiamo il player
+            if (currentTrackUrl === file.url) {
+              audio.pause();
+              audio.currentTime = 0;
+              currentTrackUrl = null;
+              currentTrackName = null;
+              updatePlayerUI();
+            }
+          };
+
+          btnGroup.appendChild(playBtn);
+          btnGroup.appendChild(stopBtn);
+          btnGroup.appendChild(delBtn);
+
+          li.appendChild(nameWrap);
+          li.appendChild(btnGroup);
+          list.appendChild(li);
+        });
+      } catch (err) {
+        list.innerHTML = "<li><em>❌ Errore nel caricamento.</em></li>";
       }
-
-      files.forEach(file => {
-        const li = document.createElement("li");
-        li.textContent = file;
-
-        const delBtn = document.createElement("button");
-        delBtn.textContent = "🗑️ Elimina";
-        delBtn.onclick = async () => {
-          await deleteFile(file);
-          await loadDownloadedFiles(); // aggiorna lista
-        };
-
-        li.appendChild(delBtn);
-        list.appendChild(li);
-      });
-    } catch (err) {
-      list.innerHTML = "<li><em>❌ Errore nel caricamento.</em></li>";
     }
-  }
 
-  async function deleteFile(fileName) {
-    await fetch(`/api/downloads?file=${encodeURIComponent(fileName)}`, {
-      method: "DELETE"
-    });
-  }
+    // --- Player UI refs ---
+    let seekEl, currentTimeEl, durationEl, playerTitleEl, playerToggleBtn;
 
-  // ✅ Avvia la visualizzazione all'avvio
-  window.onload = function() {
-    loadDownloadedFiles();
+    function updatePlayerUI() {
+      if (!seekEl || !currentTimeEl || !durationEl || !playerTitleEl || !playerToggleBtn) return;
 
-    const input = document.getElementById("query");
-    input.addEventListener("keydown", function(e) {
-      if (e.key === "Enter") {
-        search();
+      // Titolo
+      if (currentTrackName) {
+        playerTitleEl.textContent = `🎧 ${currentTrackName}`;
+      } else {
+        playerTitleEl.textContent = "Nessun brano in riproduzione";
       }
-    });
-  };    
+
+      // Tempi e barra
+      const dur = audio.duration || 0;
+      const cur = audio.currentTime || 0;
+      currentTimeEl.textContent = formatTime(cur);
+      durationEl.textContent = formatTime(dur);
+      const percent = dur ? (cur / dur) * 100 : 0;
+      seekEl.value = percent;
+
+      // Toggle
+      playerToggleBtn.textContent = audio.paused ? "▶️ Play" : "⏸️ Pausa";
+    }
+
+    function attachAudioEvents() {
+      audio.addEventListener("timeupdate", updatePlayerUI);
+      audio.addEventListener("loadedmetadata", updatePlayerUI);
+      audio.addEventListener("play", updatePlayerUI);
+      audio.addEventListener("pause", updatePlayerUI);
+      audio.addEventListener("ended", () => {
+        updatePlayerUI();
+      });
+    }
+
+    function attachPlayerControls() {
+      playerToggleBtn.addEventListener("click", () => {
+        if (!currentTrackUrl) {
+          // Se non c'è un brano selezionato, non facciamo nulla
+          return;
+        }
+        if (audio.paused) {
+          audio.play();
+        } else {
+          audio.pause();
+        }
+      });
+
+      // Seeking
+      let seeking = false;
+
+      seekEl.addEventListener("input", () => {
+        seeking = true;
+        const dur = audio.duration || 0;
+        const target = (seekEl.value / 100) * dur;
+        currentTimeEl.textContent = formatTime(target);
+      });
+
+      seekEl.addEventListener("change", () => {
+        const dur = audio.duration || 0;
+        const target = (seekEl.value / 100) * dur;
+        if (isFinite(target)) {
+          audio.currentTime = target;
+        }
+        seeking = false;
+      });
+    }
+
+    window.onload = function() {
+      status();
+      setInterval(status, 3000);
+      loadDownloadedFiles();
+
+      const input = document.getElementById("query");
+      input.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+          search();
+        }
+      });
+
+      // Player refs
+      seekEl = document.getElementById("seek");
+      currentTimeEl = document.getElementById("current-time");
+      durationEl = document.getElementById("duration");
+      playerTitleEl = document.getElementById("player-title");
+      playerToggleBtn = document.getElementById("player-toggle");
+
+      attachAudioEvents();
+      attachPlayerControls();
+      updatePlayerUI();
+    };
   </script>
-</head>
-<body>
-  <h1>DownOnSpot Web</h1>
-  <div class="grid-container">
-    <div class="left-column">
-      <h2>🎶 Risultati</h2>
-      <input id="query" placeholder="Cerca brano, artista, playlist..." />
-      <button onclick="search()">Cerca</button>
-      <ul id="results"></ul>
-    </div>
-    <div class="right-column">
-      <h2>📥 Stato download</h2>
-      <div id="status"></div>
-    </div>
-  </div>
 </body>
 </html>

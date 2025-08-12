@@ -46,3 +46,12 @@ button:hover {
   border-radius: 4px;
 }
 
+
+.file-name {
+  flex: 1;
+}
+
+.button-group {
+  display: flex;
+  gap: 6px;
+}
