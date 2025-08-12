@@ -321,7 +321,6 @@
 
       try {
         const res = await fetch("/api/downloads");
-        const files = await res.json();
         let files = await res.json();
         files = files.filter(file => file.size > 0);
         list.innerHTML = "";
