@@ -249,13 +249,37 @@
 
         data.forEach(item => {
           const li = document.createElement("li");
-          li.textContent = item.title;
+          li.style.display = "flex";
+          li.style.justifyContent = "space-between";
+          li.style.alignItems = "center";
+
+          const info = document.createElement("div");
+          info.style.display = "flex";
+          info.style.flexDirection = "column";
+          info.style.alignItems = "flex-start";
+
+          const title = document.createElement("div");
+          title.textContent = `🎵 ${item.title}`;
+          title.className = "download-title";
+
+          const author = document.createElement("div");
+          author.textContent = `👤 ${item.author}`;
+          author.className = "download-state";
+          author.style.fontSize = "0.85em";
+          author.style.marginTop = "2px";
+
+          info.appendChild(title);
+          info.appendChild(author);
+
           const btn = document.createElement("button");
           btn.textContent = "Scarica";
           btn.onclick = () => download(item.url);
+
+          li.appendChild(info);
           li.appendChild(btn);
           list.appendChild(li);
         });
+
       } catch (error) {
         list.innerHTML = "<li><em>❌ Errore durante la ricerca.</em></li>";
       }

@@ -22,6 +22,7 @@ struct SearchQuery {
 #[derive(Serialize)]
 struct SearchResult {
     title: String,
+    author: String,    
     url: String,
 }
 
@@ -33,6 +34,7 @@ async fn api_search(query: Query<SearchQuery>, app_state: web::Data<AppState>) -
             .into_iter()
             .map(|r| SearchResult {
                 title: r.title,
+                author: r.author, // Assicurati che `r` abbia questa proprietà
                 url: format!("https://open.spotify.com/track/{}", r.track_id),
             })
             .collect(),
