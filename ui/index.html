@@ -380,11 +380,26 @@
 
           const nameWrap = document.createElement("div");
           nameWrap.className = "file-name";
-          const link = document.createElement("a");
+/*          const link = document.createElement("a");
           link.href = file.url;
           link.textContent = file.name;
           link.download = file.name;
-          nameWrap.appendChild(link);
+          nameWrap.appendChild(link);*/
+
+
+
+          const title = document.createElement("div");
+          title.textContent = `🎵 ${file.title}`;
+          title.className = "download-title";
+
+          const author = document.createElement("div");
+          author.textContent = `👤 ${file.author}`;
+          author.className = "download-state";
+          author.style.fontSize = "0.85em";
+          author.style.marginTop = "2px";
+
+          nameWrap.appendChild(title);
+          nameWrap.appendChild(author);
 
           const btnGroup = document.createElement("div");
           btnGroup.className = "button-group";
@@ -408,10 +423,20 @@
             updatePlayerUI();
           };
 
+          const downloadBtn = document.createElement("button");
+          downloadBtn.textContent = "⬇️ Download";
+          downloadBtn.onclick = () => {
+            const a = document.createElement("a");
+            a.href = file.url;
+            a.download = file.filename;
+            a.click();
+          };
+          btnGroup.appendChild(downloadBtn);
+
           const delBtn = document.createElement("button");
           delBtn.textContent = "🗑️ Elimina";
           delBtn.onclick = async () => {
-            await fetch(`/api/downloads?file=${encodeURIComponent(file.name)}`, { method: "DELETE" });
+            await fetch(`/api/downloads?file=${encodeURIComponent(file.filename)}`, { method: "DELETE" });
             await loadDownloadedFiles();
             // Se stavamo riproducendo questo file, fermiamo il player
             if (currentTrackUrl === file.url) {

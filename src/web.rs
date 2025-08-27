@@ -83,11 +83,16 @@ const DOWNLOAD_DIR: &str = "./downloads";
 
 #[derive(Serialize)]
 struct FileEntry {
-    name: String,
+    title: String,
+    author: String,
     size: u64,
-    modified: u64, // epoch seconds
-    url: String,   // link diretto: /files/<name>
+    modified: u64,
+    url: String,
+    filename: String
 }
+
+use id3::{Tag, Frame, Content};
+use id3::TagLike;
 
 #[get("/api/downloads")]
 async fn api_list_downloads() -> impl Responder {
@@ -100,11 +105,30 @@ async fn api_list_downloads() -> impl Responder {
                 if let Ok(entry) = entry_res {
                     let path = entry.path();
                     if path.is_file() {
+                        
                         let name = entry
                             .file_name()
                             .to_string_lossy()
                             .to_string();
 
+                        // ✅ Leggi il tag ID3 e assegna a `tag`
+                        let mut title = name.clone();  // fallback
+                        let mut author = String::new(); // fallback
+
+                        if let Ok(tag) = Tag::read_from_path(&path) {
+                            if let Some(frame) = tag.get("TIT2") {
+                                if let Content::Text(text) = frame.content() {
+                                    title = text.to_string();
+                                }
+                            }
+                            if let Some(frame) = tag.get("TPE1") {
+                                if let Content::Text(text) = frame.content() {
+                                    author = text.to_string();
+                                }
+                            }
+                        }
+
+                        // Continua con metadata e push
                         if let Ok(meta) = entry.metadata() {
                             let size = meta.len();
                             let modified = meta
@@ -114,11 +138,16 @@ async fn api_list_downloads() -> impl Responder {
                                 .map(|d| d.as_secs())
                                 .unwrap_or(0);
 
-                            // Nota: se i nomi possono contenere spazi o caratteri speciali,
-                            // valuta di fare percent-encode lato UI quando costruisci l'URL.
                             let url = format!("/files/{}", name);
 
-                            entries.push(FileEntry { name, size, modified, url });
+                            entries.push(FileEntry {
+                                title,
+                                author,
+                                size,
+                                modified,
+                                url,
+                                filename: name,
+                            });
                         }
                     }
                 }
@@ -126,7 +155,6 @@ async fn api_list_downloads() -> impl Responder {
             HttpResponse::Ok().json(entries)
         }
         Err(e) => {
-            // Se la cartella non esiste, restituisci lista vuota (comportamento "gentile")
             if e.kind() == ErrorKind::NotFound {
                 HttpResponse::Ok().json(entries)
             } else {
