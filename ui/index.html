@@ -252,6 +252,8 @@
           li.style.display = "flex";
           li.style.justifyContent = "space-between";
           li.style.alignItems = "center";
+          li.dataset.trackId = item.track_id;
+
 
           const info = document.createElement("div");
           info.style.display = "flex";
@@ -310,7 +312,8 @@
       let foundDone = false;
 
       downloads.forEach(dl => {
-        const item = document.createElement("div");
+        const item = document.querySelector(`[data-track-id="${dl.track_id}"]`) || document.createElement("div");
+        item.dataset.trackId = dl.track_id;
         item.className = "download-item";
 
         const title = document.createElement("div");

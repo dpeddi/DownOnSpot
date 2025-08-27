@@ -167,7 +167,6 @@ impl Downloader {
 
 			// Costruzione di un Download fittizio (track_id manuale)
 			let download = Download {
-				id: 0,
 				track_id: "manual".to_string(), // Puoi sostituirlo con un vero ID se disponibile
 				title: item.title.clone(),
 				state: DownloadState::None,
@@ -247,19 +246,16 @@ async fn communication_thread(
 				}
 			}
 			// Update state of download
-			Message::UpdateState(id, state) => {
-				let i = queue.iter().position(|i| i.id == id).unwrap();
+			Message::UpdateState(track_id, state) => {
+				let i = queue.iter().position(|i| i.track_id == track_id).unwrap();
 				queue[i].state = state.clone();
 			}
 			Message::AddToQueue(download) => {
 				// Assign new IDs and reset state
-				let mut id = queue.iter().map(|i| i.id).max().unwrap_or(0);
 				let downloads: Vec<Download> = download
 					.into_iter()
 					.map(|mut d| {
-						d.id = id;
 						d.state = DownloadState::None;
-						id += 1;
 						d
 					})
 					.collect();
@@ -349,12 +345,12 @@ impl DownloaderInternal {
 
 	/// Wrapper for download_job for error handling
 	async fn download_job_wrapper(&self, job: DownloadJob, config: DownloaderConfig) {
-		let id = job.id;
+		let track_id = job.track_id.clone();
 		match self.download_job(job, config).await {
 			Ok(_) => {}
 			Err(e) => {
 				self.event_tx
-					.send(Message::UpdateState(id, DownloadState::Error(e)))
+					.send(Message::UpdateState(track_id, DownloadState::Error(e)))
 					.await
 					.unwrap();
 			}
@@ -458,12 +454,12 @@ impl DownloaderInternal {
 			path,
 			config.clone(),
 			self.event_tx.clone(),
-			job.id,
 		)
 		.await?;
 		// Post processing
+		let track_id = job.track_id.clone();
 		self.event_tx
-			.send(Message::UpdateState(job.id, DownloadState::Post))
+			.send(Message::UpdateState(track_id.clone(), DownloadState::Post))
 			.await
 			.ok();
 
@@ -504,10 +500,11 @@ impl DownloaderInternal {
 		let date = album.release_date;
 		// Write tags
 		let config = config.clone();
+		let track_id = job.track_id.clone();
 		tokio::task::spawn_blocking(move || {
 			DownloaderInternal::write_tags(
 				path,
-				job.track_id.to_string(),
+				track_id.to_string(),
 				format,
 				tags,
 				date,
@@ -519,7 +516,7 @@ impl DownloaderInternal {
 
 		// Done
 		self.event_tx
-			.send(Message::UpdateState(job.id, DownloadState::Done))
+			.send(Message::UpdateState(job.track_id, DownloadState::Done))
 			.await
 			.ok();
 		Ok(())
@@ -591,13 +588,12 @@ impl DownloaderInternal {
 	/// Download track by id
 	async fn download_track(
 		session: &Session,
-		id: &str,
+		track_id: &str,
 		path: impl AsRef<Path>,
 		config: DownloaderConfig,
 		tx: Sender<Message>,
-		job_id: i64,
 	) -> Result<(PathBuf, AudioFormat), SpotifyError> {
-		let id = SpotifyId::from_base62(id)?;
+		let id = SpotifyId::from_base62(&track_id)?;
 		let mut track = Track::get(session, &id).await?;
 
 		// Fallback if unavailable
@@ -681,12 +677,7 @@ impl DownloaderInternal {
 			match result {
 				Ok(r) => {
 					read += r;
-					tx.send(Message::UpdateState(
-						job_id,
-						DownloadState::Downloading(read, size),
-					))
-					.await
-					.ok();
+					tx.send(Message::UpdateState(track_id.to_string(), DownloadState::Downloading(read, size))).await.ok();
 				}
 				Err(e) => {
 					tokio::fs::remove_file(path).await.ok();
@@ -863,7 +854,6 @@ impl Quality {
 
 #[derive(Debug, Clone)]
 pub struct DownloadJob {
-	pub id: i64,
 	pub track_id: String,
 }
 
@@ -872,7 +862,7 @@ pub enum Message {
 	// Send job to worker
 	GetJob,
 	// Update state of download
-	UpdateState(i64, DownloadState),
+	UpdateState(String, DownloadState), // usa track_id
 	//add to download
 	AddToQueue(Vec<Download>),
 	// Get all downloads to UI
@@ -886,7 +876,6 @@ pub enum Response {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Download {
-	pub id: i64,
 	pub track_id: String,
 	pub title: String,
 	pub state: DownloadState,
@@ -912,7 +901,6 @@ impl From<aspotify::Track> for SearchResult {
 impl From<aspotify::Track> for Download {
 	fn from(val: aspotify::Track) -> Self {
 		Download {
-			id: 0,
 			track_id: val.id.unwrap(),
 			title: val.name,
 			state: DownloadState::None,
@@ -923,7 +911,6 @@ impl From<aspotify::Track> for Download {
 impl From<aspotify::TrackSimplified> for Download {
 	fn from(val: aspotify::TrackSimplified) -> Self {
 		Download {
-			id: 0,
 			track_id: val.id.unwrap(),
 			title: val.name,
 			state: DownloadState::None,
@@ -934,7 +921,6 @@ impl From<aspotify::TrackSimplified> for Download {
 impl From<Download> for DownloadJob {
 	fn from(val: Download) -> Self {
 		DownloadJob {
-			id: val.id,
 			track_id: val.track_id,
 		}
 	}
