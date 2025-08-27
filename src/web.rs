@@ -141,10 +141,34 @@ struct DeleteQuery {
     file: String,
 }
 
+use std::path::Path;
+use sanitize_filename::sanitize;
+
+/// Verifica se un nome di file è valido e sicuro da usare su filesystem multipiattaforma.
+pub fn is_valid_filename(name: &str) -> bool {
+    // Deve essere non vuoto
+    if name.trim().is_empty() {
+        return false;
+    }
+
+    // Non deve contenere path traversal o separatori
+    if name.contains('/') || name.contains('\\') || name.contains("..") {
+        return false;
+    }
+
+    // Deve essere uguale alla versione "sanitizzata"
+    let sanitized = sanitize(name);
+    if sanitized != name {
+        return false;
+    }
+
+    // Deve essere un nome valido per il filesystem
+    Path::new(&sanitized).file_name().is_some()
+}
+
 #[delete("/api/downloads")]
 async fn api_delete_download(q: Query<DeleteQuery>) -> impl Responder {
-    // Protezione base: niente path traversal o separatori
-    if q.file.contains('/') || q.file.contains('\\') || q.file.contains("..") || q.file.is_empty() {
+    if !is_valid_filename(&q.file) {
         return HttpResponse::BadRequest().body("Nome file non valido");
     }
 
