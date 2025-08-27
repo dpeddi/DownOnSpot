@@ -409,7 +409,7 @@
           playBtn.onclick = () => {
             if (currentTrackUrl !== file.url) {
               currentTrackUrl = file.url;
-              currentTrackName = file.name;
+              currentTrackName = `${file.title} — ${file.author}`;
               audio.src = file.url;
             }
             audio.play();
