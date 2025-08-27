@@ -152,7 +152,12 @@ pub fn is_valid_filename(name: &str) -> bool {
     }
 
     // Non deve contenere path traversal o separatori
-    if name.contains('/') || name.contains('\\') || name.contains("..") {
+    if name.contains('/') || name.contains('\\') {
+        return false;
+    }
+
+    // Blocca solo ".." come directory, non come parte del nome
+    if name.split('/').any(|part| part == "..") {
         return false;
     }
 
